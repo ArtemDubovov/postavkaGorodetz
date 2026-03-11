@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор поставок Wildberries</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src * self blob: data: gap:; style-src * self 'unsafe-inline' blob: data:; script-src * self 'unsafe-inline' 'unsafe-eval' blob: data:; object-src * 'self' blob: data:; img-src * self 'unsafe-inline' blob: data:; connect-src self * 'unsafe-inline' blob: data:; frame-src * self blob: data:;">
+    <title>Генератор поставок для маркетплейсов</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -51,6 +52,73 @@
             padding: 30px;
         }
 
+        .marketplace-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            justify-content: center;
+        }
+
+        .marketplace-tab {
+            padding: 12px 40px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .marketplace-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .marketplace-tab:hover:not(.active) {
+            background: #e8e9ff;
+            color: #667eea;
+        }
+
+        .action-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .action-tab {
+            padding: 12px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .action-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-tab:hover:not(.active) {
+            background: #e0e0e0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .upload-section {
             background: #f8f9fa;
             border-radius: 15px;
@@ -94,6 +162,7 @@
             padding: 15px;
             margin-top: 20px;
             display: inline-block;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .button {
@@ -126,7 +195,7 @@
 
         .stats-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 20px;
             margin: 30px 0;
         }
@@ -141,7 +210,7 @@
         }
 
         .stat-card .stat-value {
-            font-size: 2.5em;
+            font-size: 2em;
             font-weight: bold;
             margin-bottom: 5px;
         }
@@ -174,7 +243,7 @@
             border-radius: 10px;
             padding: 20px;
             margin-top: 30px;
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
@@ -190,26 +259,15 @@
         .log-entry.error { color: #f44336; }
         .log-entry.info { color: #2196f3; }
 
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+        .file-requirements {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
         }
 
-        .results-table th,
-        .results-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .results-table th {
-            background: #667eea;
-            color: white;
-        }
-
-        .results-table tr:hover {
-            background: #f5f5f5;
+        .file-requirements span {
+            color: #667eea;
+            font-weight: 600;
         }
 
         .hidden {
@@ -220,49 +278,103 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📦 Генератор поставок Wildberries</h1>
-            <p>Загрузите отчет и получите файлы поставок по кластерам</p>
+            <h1>📦 Генератор поставок для маркетплейсов</h1>
+            <p>Выберите маркетплейс и тип отчета</p>
         </div>
 
         <div class="content">
-            <!-- Секция загрузки -->
-            <div class="upload-section" id="dropZone">
-                <div class="upload-icon">📊</div>
-                <h3>Перетащите файл Excel сюда или нажмите для выбора</h3>
-                <p>Поддерживаются файлы .xlsx, .xls</p>
-                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
-                <div id="fileInfo" class="file-info hidden"></div>
+            <!-- Вкладки выбора маркетплейса -->
+            <div class="marketplace-tabs">
+                <button class="marketplace-tab active" onclick="switchMarketplace('ozon')">🛍️ OZON</button>
+                <button class="marketplace-tab" onclick="switchMarketplace('wb')">📦 Wildberries</button>
             </div>
 
-            <!-- Кнопки действий -->
-            <div style="text-align: center;">
-                <button class="button" id="processBtn" disabled>
-                    🔄 Обработать файл
-                </button>
-                <button class="button secondary" id="downloadBtn" disabled>
-                    📥 Скачать ZIP с поставками
-                </button>
+            <!-- Контент для OZON -->
+            <div id="ozon-content" class="marketplace-content">
+                <div class="action-tabs">
+                    <button class="action-tab active" onclick="switchAction('ozon', 'post')">📊 Сформировать поставку</button>
+                    <button class="action-tab" onclick="switchAction('ozon', 'cities')">🏙️ Разбить по городам</button>
+                </div>
+
+                <!-- OZON: Сформировать поставку -->
+                <div id="ozon-post" class="tab-content active">
+                    <div class="upload-section" id="ozonPostDropZone">
+                        <div class="upload-icon">📊</div>
+                        <h3>Загрузите файл products.xlsx</h3>
+                        <p>Файл с данными о товарах и кластерах</p>
+                        <div class="file-requirements">
+                            <span>Требуемые колонки:</span> SKU, Артикул, Название товара, Рекомендуемая поставка, Кластер
+                        </div>
+                        <input type="file" id="ozonPostFile" accept=".xlsx,.xls" style="display: none;">
+                        <div id="ozonPostFileInfo" class="file-info hidden"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="button" id="processOzonPostBtn" disabled>📊 Сформировать поставку OZON</button>
+                    </div>
+                </div>
+
+                <!-- OZON: Разбить по городам -->
+                <div id="ozon-cities" class="tab-content">
+                    <div class="upload-section" id="ozonCitiesDropZone">
+                        <div class="upload-icon">🏙️</div>
+                        <h3>Загрузите файл post.xlsx</h3>
+                        <p>Файл с итоговой таблицей поставки</p>
+                        <div class="file-requirements">
+                            <span>Требуемые колонки:</span> Товар, Артикул, и колонки городов
+                        </div>
+                        <input type="file" id="ozonCitiesFile" accept=".xlsx,.xls" style="display: none;">
+                        <div id="ozonCitiesFileInfo" class="file-info hidden"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="button" id="processOzonCitiesBtn" disabled>🏙️ Разбить по городам OZON</button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Статистика -->
-            <div class="stats-container" id="statsContainer" style="display: none;">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalClusters">0</div>
-                    <div class="stat-label">Кластеров</div>
+            <!-- Контент для Wildberries -->
+            <div id="wb-content" class="marketplace-content" style="display: none;">
+                <div class="action-tabs">
+                    <button class="action-tab active" onclick="switchAction('wb', 'post')">📊 Сформировать поставку</button>
+                    <button class="action-tab" onclick="switchAction('wb', 'regions')">🏙️ Разбить по регионам</button>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalProducts">0</div>
-                    <div class="stat-label">Товаров</div>
+
+                <!-- Wildberries: Сформировать поставку -->
+                <div id="wb-post" class="tab-content active">
+                    <div class="upload-section" id="wbPostDropZone">
+                        <div class="upload-icon">📊</div>
+                        <h3>Загрузите файл recommendations.xlsx</h3>
+                        <p>Файл с рекомендациями по поставкам</p>
+                        <div class="file-requirements">
+                            <span>Требуемые колонки:</span> Регион, Артикул продавца, Наименование товара, Артикул WB, Баркоды, Рекомендуем отгрузить (56 дней)
+                        </div>
+                        <input type="file" id="wbPostFile" accept=".xlsx,.xls" style="display: none;">
+                        <div id="wbPostFileInfo" class="file-info hidden"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="button" id="processWbPostBtn" disabled>📊 Сформировать поставку Wildberries</button>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalQuantity">0</div>
-                    <div class="stat-label">Всего единиц</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="urgentProducts">0</div>
-                    <div class="stat-label">Срочных</div>
+
+                <!-- Wildberries: Разбить по регионам -->
+                <div id="wb-regions" class="tab-content">
+                    <div class="upload-section" id="wbRegionsDropZone">
+                        <div class="upload-icon">🏙️</div>
+                        <h3>Загрузите файл post.xlsx</h3>
+                        <p>Файл с итоговой таблицей поставки WB</p>
+                        <div class="file-requirements">
+                            <span>Требуемые колонки:</span> Товар, Артикул, ШК, Баркоды, и колонки регионов
+                        </div>
+                        <input type="file" id="wbRegionsFile" accept=".xlsx,.xls" style="display: none;">
+                        <div id="wbRegionsFileInfo" class="file-info hidden"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="button" id="processWbRegionsBtn" disabled>🏙️ Разбить по регионам Wildberries</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Статистика (динамически заполняется) -->
+            <div id="statsContainer" class="stats-container" style="display: none;"></div>
 
             <!-- Прогресс бар -->
             <div class="progress-bar" id="progressBar">
@@ -271,485 +383,809 @@
 
             <!-- Лог выполнения -->
             <div class="log-container" id="logContainer">
-                <div class="log-entry info">👋 Готов к работе. Загрузите файл отчета.</div>
-            </div>
-
-            <!-- Таблица результатов -->
-            <div id="resultsContainer" style="display: none;">
-                <h3 style="margin: 20px 0 10px;">📋 Результаты по кластерам</h3>
-                <table class="results-table" id="resultsTable">
-                    <thead>
-                        <tr>
-                            <th>Кластер</th>
-                            <th>Товаров</th>
-                            <th>Всего единиц</th>
-                            <th>Срочных</th>
-                            <th>Файл</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultsBody"></tbody>
-                </table>
+                <div class="log-entry info">👋 Выберите маркетплейс и загрузите файл</div>
             </div>
         </div>
     </div>
 
     <script>
-        class SupplyExcelGenerator {
-            constructor(data) {
-                this.data = data;
-                this.results = [];
-                this.logs = [];
+        // Текущее состояние
+        let currentMarketplace = 'ozon';
+        let currentAction = 'post';
+        let currentFile = null;
+
+        // Переключение маркетплейса
+        function switchMarketplace(marketplace) {
+            currentMarketplace = marketplace;
+            
+            // Обновляем классы вкладок
+            document.querySelectorAll('.marketplace-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.marketplace-tab[onclick*="${marketplace}"]`).classList.add('active');
+            
+            // Показываем нужный контент
+            document.getElementById('ozon-content').style.display = marketplace === 'ozon' ? 'block' : 'none';
+            document.getElementById('wb-content').style.display = marketplace === 'wb' ? 'block' : 'none';
+            
+            // Сбрасываем файл
+            resetFileState();
+        }
+
+        // Переключение действия внутри маркетплейса
+        function switchAction(marketplace, action) {
+            currentAction = action;
+            
+            // Обновляем классы вкладок
+            document.querySelectorAll(`#${marketplace}-content .action-tab`).forEach(t => t.classList.remove('active'));
+            document.querySelector(`#${marketplace}-content .action-tab[onclick*="${action}"]`).classList.add('active');
+            
+            // Показываем нужный контент
+            document.querySelectorAll(`#${marketplace}-content .tab-content`).forEach(t => t.classList.remove('active'));
+            document.getElementById(`${marketplace}-${action}`).classList.add('active');
+            
+            // Сбрасываем файл
+            resetFileState();
+        }
+
+        // Сброс состояния файла
+        function resetFileState() {
+            currentFile = null;
+            document.getElementById('statsContainer').style.display = 'none';
+            document.getElementById('statsContainer').innerHTML = '';
+            
+            // Скрываем все информационные блоки
+            document.querySelectorAll('.file-info').forEach(el => {
+                el.classList.add('hidden');
+            });
+            
+            // Отключаем все кнопки
+            document.querySelectorAll('.button[id^="process"]').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+
+        // Добавление записи в лог
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Обновление прогресс-бара
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+            
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 1000);
+            }
+        }
+
+        // Показать статистику
+        function showStats(stats) {
+            const container = document.getElementById('statsContainer');
+            container.style.display = 'grid';
+            container.innerHTML = '';
+            
+            Object.entries(stats).forEach(([key, value]) => {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div class="stat-value">${value}</div>
+                    <div class="stat-label">${key}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Инициализация обработчиков для всех зон загрузки
+        document.addEventListener('DOMContentLoaded', function() {
+            // OZON Post
+            initDropZone('ozonPost', 'ozonPostFile', 'processOzonPostBtn', handleOzonPost);
+            // OZON Cities
+            initDropZone('ozonCities', 'ozonCitiesFile', 'processOzonCitiesBtn', handleOzonCities);
+            // WB Post
+            initDropZone('wbPost', 'wbPostFile', 'processWbPostBtn', handleWbPost);
+            // WB Regions
+            initDropZone('wbRegions', 'wbRegionsFile', 'processWbRegionsBtn', handleWbRegions);
+        });
+
+        function initDropZone(zoneId, inputId, btnId, handler) {
+            const dropZone = document.getElementById(`${zoneId}DropZone`);
+            const fileInput = document.getElementById(inputId);
+            const processBtn = document.getElementById(btnId);
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleFileSelect(e.dataTransfer.files[0], zoneId, inputId, btnId, handler);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0], zoneId, inputId, btnId, handler);
+                }
+            });
+
+            processBtn.addEventListener('click', handler);
+        }
+
+        function handleFileSelect(file, zoneId, inputId, btnId, handler) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                addLog('❌ Пожалуйста, выберите файл Excel (.xlsx или .xls)', 'error');
+                return;
             }
 
-            // Группировка данных по кластерам
-            groupByCluster() {
-                const grouped = {};
+            currentFile = file;
+            const fileInfo = document.getElementById(`${zoneId}FileInfo`);
+            fileInfo.textContent = `Выбран файл: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            fileInfo.classList.remove('hidden');
+            
+            document.getElementById(btnId).disabled = false;
+            addLog(`📁 Загружен файл: ${file.name}`, 'success');
+        }
+
+        // ==================== ОБРАБОТЧИКИ ДЛЯ OZON ====================
+
+        async function handleOzonPost() {
+            if (!currentFile) return;
+            
+            try {
+                addLog('🔄 Обработка файла для формирования поставки OZON...', 'info');
                 
-                this.data.forEach(item => {
-                    const cluster = item.cluster || 'Без кластера';
-                    if (!grouped[cluster]) {
-                        grouped[cluster] = [];
-                    }
-                    grouped[cluster].push(item);
+                const data = await readOzonPostFile(currentFile);
+                const generator = new OzonPostGenerator(data);
+                
+                const result = await generator.generate();
+                
+                showStats({
+                    'Товаров': result.productsCount,
+                    'Городов': result.citiesCount,
+                    'Всего единиц': result.totalQuantity
                 });
                 
+                addLog(`✅ Файл поставки OZON создан: ${result.fileName}`, 'success');
+                
+            } catch (error) {
+                addLog(`❌ Ошибка: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleOzonCities() {
+            if (!currentFile) return;
+            
+            try {
+                addLog('🔄 Разбивка по городам OZON...', 'info');
+                
+                const data = await readOzonCitiesFile(currentFile);
+                const generator = new OzonCitiesGenerator(data);
+                
+                const zipBlob = await generator.generateZip(updateProgress);
+                saveAs(zipBlob, 'OZON_поставки_по_городам.zip');
+                
+                const stats = generator.getStats();
+                showStats({
+                    'Городов': stats.cities,
+                    'Позиций': stats.items,
+                    'Всего единиц': stats.total
+                });
+                
+                addLog(`✅ ZIP архив создан: OZON_поставки_по_городам.zip`, 'success');
+                
+            } catch (error) {
+                addLog(`❌ Ошибка: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== ОБРАБОТЧИКИ ДЛЯ WILDBERRIES ====================
+
+        async function handleWbPost() {
+            if (!currentFile) return;
+            
+            try {
+                addLog('🔄 Обработка файла для формирования поставки Wildberries...', 'info');
+                
+                const data = await readWbPostFile(currentFile);
+                const generator = new WbPostGenerator(data);
+                
+                const result = await generator.generate();
+                
+                showStats({
+                    'Товаров': result.productsCount,
+                    'Регионов': result.regionsCount,
+                    'Всего единиц': result.totalQuantity
+                });
+                
+                addLog(`✅ Файл поставки Wildberries создан: ${result.fileName}`, 'success');
+                
+            } catch (error) {
+                addLog(`❌ Ошибка: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleWbRegions() {
+            if (!currentFile) return;
+            
+            try {
+                addLog('🔄 Разбивка по регионам Wildberries...', 'info');
+                
+                const data = await readWbRegionsFile(currentFile);
+                const generator = new WbRegionsGenerator(data);
+                
+                const zipBlob = await generator.generateZip(updateProgress);
+                saveAs(zipBlob, 'Wildberries_поставки_по_регионам.zip');
+                
+                const stats = generator.getStats();
+                showStats({
+                    'Регионов': stats.regions,
+                    'Наборов': stats.items,
+                    'Всего единиц': stats.total
+                });
+                
+                addLog(`✅ ZIP архив создан: Wildberries_поставки_по_регионам.zip`, 'success');
+                
+            } catch (error) {
+                addLog(`❌ Ошибка: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== КЛАССЫ-ГЕНЕРАТОРЫ ====================
+
+        // OZON: формирование поставки (generatePostOZ.js)
+        class OzonPostGenerator {
+            constructor(data) {
+                this.data = data;
+                this.grouped = this.groupByArticle();
+            }
+
+            groupByArticle() {
+                const grouped = {};
+                this.data.forEach(item => {
+                    if (!grouped[item.article]) {
+                        grouped[item.article] = {
+                            article: item.article,
+                            name: item.name,
+                            sku: item.sku,
+                            cities: {},
+                            totalQuantity: 0
+                        };
+                    }
+                    if (item.city && item.quantity > 0) {
+                        grouped[item.article].cities[item.city] = (grouped[item.article].cities[item.city] || 0) + item.quantity;
+                        grouped[item.article].totalQuantity += item.quantity;
+                    }
+                });
                 return grouped;
             }
 
-            // Создание Excel файла для кластера
-            createExcelBlob(clusterName, items) {
-                // Подготовка данных для Excel
-                const worksheetData = [
-                    ['артикул', 'имя (необязательно)', 'количество']
-                ];
+            getCities() {
+                const cities = new Set();
+                this.data.forEach(item => item.city && cities.add(item.city));
+                return Array.from(cities).sort();
+            }
+
+            async generate() {
+                const cities = this.getCities();
+                const worksheetData = [['Товар', 'Артикул', 'ШК', ...cities, 'Сумма по городам']];
                 
-                // Сортируем товары по артикулу
-                const sortedItems = [...items].sort((a, b) => 
-                    (a.article || '').localeCompare(b.article || '')
-                );
-                
-                // Фильтруем товары с количеством > 0
-                const itemsWithQuantity = sortedItems.filter(item => 
-                    parseInt(item.recommendedQuantity) > 0
-                );
-                
-                itemsWithQuantity.forEach(item => {
-                    worksheetData.push([
-                        item.article || '',
-                        item.name || '',
-                        item.recommendedQuantity || 0,
-                    ]);
+                Object.values(this.grouped).forEach(product => {
+                    const row = [product.name, product.article, product.sku];
+                    let total = 0;
+                    cities.forEach(city => {
+                        const qty = product.cities[city] || '';
+                        row.push(qty);
+                        if (qty) total += qty;
+                    });
+                    row.push(total);
+                    worksheetData.push(row);
                 });
-                
-                // Создаем рабочий лист
-                const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-                
-                // Настраиваем ширину колонок
-                worksheet['!cols'] = [
-                    { wch: 15 }, // артикул
-                    { wch: 50 }, // название
-                    { wch: 15 }  // количество
-                ];
-                
-                // Создаем книгу
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, clusterName.substring(0, 31));
-                
-                // Генерируем файл как ArrayBuffer
-                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-                
-                return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            }
 
-            // Генерация всех файлов и создание ZIP
-            async generateZip() {
-                const groupedByCluster = this.groupByCluster();
-                const zip = new JSZip();
-                
-                this.results = [];
-                
-                for (const [clusterName, items] of Object.entries(groupedByCluster)) {
-                    try {
-                        const itemsWithQuantity = items.filter(item => 
-                            parseInt(item.recommendedQuantity) > 0
-                        );
-                        
-                        if (itemsWithQuantity.length === 0) continue;
-                        
-                        const blob = this.createExcelBlob(clusterName, items);
-                        
-                        // Формируем безопасное имя файла
-                        const safeClusterName = clusterName.replace(/[\\/*?:"<>|]/g, '_');
-                        const fileName = `${safeClusterName}.xlsx`;
-                        
-                        // Добавляем файл в ZIP
-                        zip.file(fileName, blob);
-                        
-                        // Подсчет статистики
-                        const totalQuantity = itemsWithQuantity.reduce((sum, item) => 
-                            sum + (parseInt(item.recommendedQuantity) || 0), 0
-                        );
-                        
-                        const urgentCount = itemsWithQuantity.filter(item => 
-                            item.recommendation === 'Срочно поставить'
-                        ).length;
-                        
-                        this.results.push({
-                            cluster: clusterName,
-                            fileName: fileName,
-                            itemCount: itemsWithQuantity.length,
-                            totalQuantity: totalQuantity,
-                            urgentCount: urgentCount
-                        });
-                        
-                        this.addLog(`✅ Добавлен кластер "${clusterName}" (${itemsWithQuantity.length} товаров)`, 'success');
-                    } catch (error) {
-                        this.addLog(`❌ Ошибка при обработке кластера "${clusterName}": ${error.message}`, 'error');
-                    }
-                }
-                
-                // Создаем сводный отчет
-                const summaryBlob = this.createSummaryReport();
-                zip.file('00_Сводный_отчет.xlsx', summaryBlob);
-                
-                // Генерируем ZIP
-                const zipBlob = await zip.generateAsync({ 
-                    type: 'blob',
-                    compression: 'DEFLATE',
-                    compressionOptions: { level: 9 }
-                }, (metadata) => {
-                    const percent = Math.round(metadata.percent);
-                    this.updateProgress(percent);
+                const totalRow = ['ИТОГО:', '', ''];
+                let grandTotal = 0;
+                cities.forEach(city => {
+                    const cityTotal = Object.values(this.grouped).reduce((sum, p) => sum + (p.cities[city] || 0), 0);
+                    totalRow.push(cityTotal);
+                    grandTotal += cityTotal;
                 });
+                totalRow.push(grandTotal);
+                worksheetData.push([], totalRow);
+
+                const wb = this.createWorkbook(worksheetData, 'ОЗОН поставка');
+                const date = this.getCurrentDate();
+                const fileName = `ОЗОН ${date}.xlsx`;
                 
-                return zipBlob;
+                // В браузере сохраняем файл
+                const blob = this.workbookToBlob(wb);
+                saveAs(blob, fileName);
+
+                return {
+                    fileName,
+                    productsCount: Object.keys(this.grouped).length,
+                    citiesCount: cities.length,
+                    totalQuantity: grandTotal
+                };
             }
 
-            // Создание сводного отчета
-            createSummaryReport() {
-                const summaryData = [
-                    ['Кластер', 'Количество товаров', 'Общее количество', 'Срочных поставок', 'Файл']
-                ];
-                
-                this.results.forEach(result => {
-                    summaryData.push([
-                        result.cluster,
-                        result.itemCount,
-                        result.totalQuantity,
-                        result.urgentCount,
-                        result.fileName
-                    ]);
+            getCurrentDate() {
+                const d = new Date();
+                return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+            }
+
+            createWorkbook(data, sheetName) {
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                ws['!cols'] = [{ wch: 50 }, { wch: 20 }, { wch: 20 }, ...Array(data[0].length-3).fill({ wch: 15 })];
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                return wb;
+            }
+
+            workbookToBlob(wb) {
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                return new Blob([wbout], { type: 'application/octet-stream' });
+            }
+        }
+
+        // OZON: разбивка по городам (generateCitysOZ.js)
+        class OzonCitiesGenerator {
+            constructor(data) {
+                this.data = data;
+                this.grouped = this.groupByCity();
+            }
+
+            groupByCity() {
+                const grouped = {};
+                this.data.forEach(item => {
+                    if (!grouped[item.city]) grouped[item.city] = [];
+                    const existing = grouped[item.city].find(i => i.article === item.article);
+                    if (existing) existing.quantity += item.quantity;
+                    else grouped[item.city].push({ article: item.article, name: item.name, quantity: item.quantity });
                 });
-                
-                // Общие итоги
-                const totalItems = this.results.reduce((sum, r) => sum + r.itemCount, 0);
-                const totalQuantity = this.results.reduce((sum, r) => sum + r.totalQuantity, 0);
-                const totalUrgent = this.results.reduce((sum, r) => sum + r.urgentCount, 0);
-                
-                summaryData.push([]);
-                summaryData.push(['ВСЕГО:', totalItems, totalQuantity, totalUrgent, '']);
-                
-                // Создаем рабочий лист
-                const worksheet = XLSX.utils.aoa_to_sheet(summaryData);
-                worksheet['!cols'] = [
-                    { wch: 40 },
-                    { wch: 20 },
-                    { wch: 20 },
-                    { wch: 20 },
-                    { wch: 30 }
-                ];
-                
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, 'Сводка');
-                
-                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-                return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            }
-
-            addLog(message, type = 'info') {
-                this.logs.push({ message, type });
-                const logContainer = document.getElementById('logContainer');
-                const logEntry = document.createElement('div');
-                logEntry.className = `log-entry ${type}`;
-                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                logContainer.appendChild(logEntry);
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
-
-            updateProgress(percent) {
-                const progressBar = document.getElementById('progressBar');
-                const progressFill = document.getElementById('progressFill');
-                progressBar.style.display = 'block';
-                progressFill.style.width = percent + '%';
+                Object.values(grouped).forEach(items => items.sort((a,b) => a.article.localeCompare(b.article)));
+                return grouped;
             }
 
             getStats() {
+                const cities = Object.keys(this.grouped);
                 return {
-                    totalClusters: this.results.length,
-                    totalProducts: this.results.reduce((sum, r) => sum + r.itemCount, 0),
-                    totalQuantity: this.results.reduce((sum, r) => sum + r.totalQuantity, 0),
-                    urgentProducts: this.results.reduce((sum, r) => sum + r.urgentCount, 0)
+                    cities: cities.length,
+                    items: Object.values(this.grouped).reduce((sum, items) => sum + items.length, 0),
+                    total: Object.values(this.grouped).reduce((sum, items) => sum + items.reduce((s,i) => s + i.quantity, 0), 0)
+                };
+            }
+
+            async generateZip(progressCallback) {
+                const zip = new JSZip();
+                
+                for (const [city, items] of Object.entries(this.grouped)) {
+                    const data = [['артикул', 'имя (необязательно)', 'количество']];
+                    items.forEach(item => data.push([item.article, item.name, item.quantity]));
+                    
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [{ wch: 20 }, { wch: 50 }, { wch: 15 }];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, city.substring(0,31));
+                    
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                    zip.file(`${city.replace(/[\\/*?:"<>|]/g, '_')}.xlsx`, new Blob([wbout]));
+                }
+
+                // Сводка
+                const summary = [['Город', 'Количество товаров', 'Всего единиц', 'Файл']];
+                Object.entries(this.grouped).forEach(([city, items]) => {
+                    const total = items.reduce((s,i) => s + i.quantity, 0);
+                    summary.push([city, items.length, total, `${city.replace(/[\\/*?:"<>|]/g, '_')}.xlsx`]);
+                });
+                
+                const wsSummary = XLSX.utils.aoa_to_sheet(summary);
+                const wbSummary = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wbSummary, wsSummary, 'Сводка');
+                const summaryBlob = new Blob([XLSX.write(wbSummary, { bookType: 'xlsx', type: 'array' })]);
+                zip.file('00_Сводка_по_городам.xlsx', summaryBlob);
+
+                return await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }, progressCallback);
+            }
+        }
+
+        // Wildberries: формирование поставки (generatePostWB.js)
+        class WbPostGenerator {
+            constructor(data) {
+                this.data = data;
+                this.regions = this.extractRegions();
+            }
+
+            extractRegions() {
+                const regions = new Set();
+                this.data.forEach(item => {
+                    if (item.regions) Object.keys(item.regions).forEach(r => regions.add(r));
+                });
+                return Array.from(regions).sort();
+            }
+
+            async generate() {
+                const data = [['Товар', 'Артикул', 'ШК', 'Баркоды', ...this.regions, 'Сумма по регионам']];
+                
+                this.data.forEach(product => {
+                    const row = [product.name, product.article, product.wbArticle, product.barcodes];
+                    let total = 0;
+                    this.regions.forEach(region => {
+                        const qty = product.regions[region] || '';
+                        row.push(qty);
+                        if (qty) total += qty;
+                    });
+                    row.push(total);
+                    data.push(row);
+                });
+
+                const totalRow = ['ИТОГО:', '', '', ''];
+                let grandTotal = 0;
+                this.regions.forEach(region => {
+                    const regionTotal = this.data.reduce((sum, p) => sum + (p.regions[region] || 0), 0);
+                    totalRow.push(regionTotal);
+                    grandTotal += regionTotal;
+                });
+                totalRow.push(grandTotal);
+                data.push([], totalRow);
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                ws['!cols'] = [{ wch: 50 }, { wch: 20 }, { wch: 15 }, { wch: 30 }, ...this.regions.map(() => ({ wch: 20 })), { wch: 20 }];
+                XLSX.utils.book_append_sheet(wb, ws, 'WB поставка');
+
+                const date = new Date();
+                const fileName = `Поставка WB ${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}.xlsx`;
+                
+                const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })]);
+                saveAs(blob, fileName);
+
+                return {
+                    fileName,
+                    productsCount: this.data.length,
+                    regionsCount: this.regions.length,
+                    totalQuantity: grandTotal
                 };
             }
         }
 
-        // Функция для чтения Excel файла
-        function readExcelFile(file) {
+        // Wildberries: разбивка по регионам (generateCitysWB.js)
+        class WbRegionsGenerator {
+            constructor(data) {
+                this.data = data;
+                this.grouped = this.groupByRegion();
+            }
+
+            groupByRegion() {
+                const grouped = {};
+                this.data.forEach(item => {
+                    if (!grouped[item.region]) grouped[item.region] = [];
+                    const existing = grouped[item.region].find(i => i.barcodes === item.barcodes);
+                    if (existing) existing.quantity += item.quantity;
+                    else grouped[item.region].push({ barcodes: item.barcodes, quantity: item.quantity });
+                });
+                Object.values(grouped).forEach(items => items.sort((a,b) => a.barcodes.localeCompare(b.barcodes)));
+                return grouped;
+            }
+
+            getStats() {
+                const regions = Object.keys(this.grouped);
+                return {
+                    regions: regions.length,
+                    items: Object.values(this.grouped).reduce((sum, items) => sum + items.length, 0),
+                    total: Object.values(this.grouped).reduce((sum, items) => sum + items.reduce((s,i) => s + i.quantity, 0), 0)
+                };
+            }
+
+            async generateZip(progressCallback) {
+                const zip = new JSZip();
+                
+                for (const [region, items] of Object.entries(this.grouped)) {
+                    const data = [['Баркод', 'Количество']];
+                    items.forEach(item => data.push([item.barcodes, item.quantity]));
+                    
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [{ wch: 50 }, { wch: 15 }];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, region.substring(0,31));
+                    
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                    zip.file(`${region.replace(/[\\/*?:"<>|]/g, '_')}.xlsx`, new Blob([wbout]));
+                }
+
+                // Сводка
+                const summary = [['Регион', 'Количество наборов баркодов', 'Всего единиц', 'Файл']];
+                Object.entries(this.grouped).forEach(([region, items]) => {
+                    const total = items.reduce((s,i) => s + i.quantity, 0);
+                    summary.push([region, items.length, total, `${region.replace(/[\\/*?:"<>|]/g, '_')}.xlsx`]);
+                });
+                
+                const wsSummary = XLSX.utils.aoa_to_sheet(summary);
+                const wbSummary = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wbSummary, wsSummary, 'Сводка');
+                const summaryBlob = new Blob([XLSX.write(wbSummary, { bookType: 'xlsx', type: 'array' })]);
+                zip.file('00_Сводка_по_регионам.xlsx', summaryBlob);
+
+                return await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }, progressCallback);
+            }
+        }
+
+        // ==================== ФУНКЦИИ ЧТЕНИЯ ФАЙЛОВ ====================
+
+        async function readOzonPostFile(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                
-                reader.onload = function(e) {
+                reader.onload = (e) => {
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                         
-                        // Берем первый лист
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        
-                        // Получаем данные как массив массивов
-                        const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                        
-                        // Ищем заголовки
-                        let headers = null;
-                        let headerRowIndex = -1;
-                        
-                        for (let i = 5; i < Math.min(10, sheetData.length); i++) {
-                            const row = sheetData[i];
-                            if (!row) continue;
-                            
-                            const rowStr = row.join(' ').toLowerCase();
-                            if (rowStr.includes('sku') || rowStr.includes('артикул') || rowStr.includes('название товара')) {
-                                headers = row;
-                                headerRowIndex = i;
+                        // Поиск заголовков
+                        let headerRow = -1;
+                        for (let i = 0; i < Math.min(20, rows.length); i++) {
+                            const rowStr = (rows[i] || []).join(' ').toLowerCase();
+                            if (rowStr.includes('sku') && rowStr.includes('артикул')) {
+                                headerRow = i;
                                 break;
                             }
                         }
-                        
-                        if (!headers) {
-                            reject(new Error('Не удалось найти заголовки таблицы'));
-                            return;
-                        }
-                        
-                        // Находим индексы колонок
-                        const columnIndices = {
-                            sku: findColumnIndex(headers, ['SKU', 'sku']),
-                            article: findColumnIndex(headers, ['Артикул', 'артикул']),
-                            name: findColumnIndex(headers, ['Название товара', 'название товара']),
-                            recommended: findColumnIndex(headers, ['Рекомендуемая поставка, шт на 56 дней', 'рекомендуемая поставка']),
-                            recommendation: findColumnIndex(headers, ['Рекомендация', 'рекомендация']),
-                            cluster: findColumnIndex(headers, ['Кластер', 'кластер']),
-                            salesScheme: findColumnIndex(headers, ['Схема продаж', 'схема продаж'])
+                        if (headerRow === -1) throw new Error('Не найдены заголовки');
+
+                        const headers = rows[headerRow];
+                        const colIndices = {
+                            sku: findColIndex(headers, ['SKU', 'sku']),
+                            article: findColIndex(headers, ['Артикул', 'артикул']),
+                            name: findColIndex(headers, ['Название товара', 'название товара']),
+                            quantity: findColIndex(headers, ['Рекомендуемая поставка, шт на 56 дней', 'рекомендуемая поставка', 'количество']),
+                            cluster: findColIndex(headers, ['Кластер', 'кластер'])
                         };
-                        
-                        // Обрабатываем данные
-                        const products = [];
-                        for (let i = headerRowIndex + 1; i < sheetData.length; i++) {
-                            const row = sheetData[i];
-                            if (!row || row.length === 0) continue;
-                            
-                            const hasData = row.some(cell => cell !== undefined && cell !== null && cell !== '');
-                            if (!hasData) continue;
-                            
-                            const product = {
-                                sku: getValue(row, columnIndices.sku),
-                                article: getValue(row, columnIndices.article),
-                                name: getValue(row, columnIndices.name),
-                                recommendedQuantity: getValue(row, columnIndices.recommended),
-                                recommendation: getValue(row, columnIndices.recommendation),
-                                cluster: getValue(row, columnIndices.cluster),
-                                salesScheme: getValue(row, columnIndices.salesScheme)
-                            };
-                            
-                            if (product.recommendedQuantity && isNaN(product.recommendedQuantity)) {
-                                product.recommendedQuantity = parseInt(product.recommendedQuantity) || 0;
-                            }
-                            
-                            if (product.article || product.name) {
-                                products.push(product);
-                            }
+
+                        // Сбор уникальных кластеров для маппинга
+                        const clusters = new Set();
+                        for (let i = headerRow+1; i < rows.length; i++) {
+                            const cluster = getCell(rows[i], colIndices.cluster);
+                            if (cluster) clusters.add(cluster);
                         }
+
+                        const cityMapping = createCityMapping(Array.from(clusters));
                         
+                        const products = [];
+                        for (let i = headerRow+1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (!row) continue;
+                            
+                            const qty = parseInt(getCell(row, colIndices.quantity)) || 0;
+                            if (qty === 0) continue;
+                            
+                            const cluster = getCell(row, colIndices.cluster);
+                            if (!cluster) continue;
+                            
+                            const article = getCell(row, colIndices.article);
+                            if (!article) continue;
+                            
+                            products.push({
+                                sku: getCell(row, colIndices.sku),
+                                article,
+                                name: getCell(row, colIndices.name),
+                                quantity: qty,
+                                city: cityMapping.get(cluster) || cluster
+                            });
+                        }
                         resolve(products);
-                    } catch (error) {
-                        reject(error);
-                    }
+                    } catch (err) { reject(err); }
                 };
-                
                 reader.onerror = reject;
                 reader.readAsArrayBuffer(file);
             });
         }
 
-        function findColumnIndex(headers, possibleNames) {
-            if (!headers) return -1;
-            
-            for (const name of possibleNames) {
-                const index = headers.findIndex(h => 
-                    h && h.toString().toLowerCase().includes(name.toLowerCase())
-                );
-                if (index !== -1) return index;
+        async function readOzonCitiesFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        const headers = rows[0];
+                        const articleIdx = headers.findIndex(h => h === 'Артикул');
+                        const nameIdx = headers.findIndex(h => h === 'Товар');
+                        
+                        // Сбор городов
+                        const cities = [];
+                        for (let i = 3; i < headers.length - 1; i++) {
+                            const h = headers[i];
+                            if (h && h !== 'Сумма по городам' && h !== 'ИТОГО:') cities.push(h);
+                        }
+
+                        const products = [];
+                        for (let i = 1; i < rows.length - 2; i++) {
+                            const row = rows[i];
+                            if (!row) continue;
+                            const article = row[articleIdx];
+                            const name = row[nameIdx];
+                            if (!article) continue;
+                            
+                            for (let j = 0; j < cities.length; j++) {
+                                const qty = parseInt(row[j+3]) || 0;
+                                if (qty > 0) {
+                                    products.push({ article, name, quantity: qty, city: cities[j] });
+                                }
+                            }
+                        }
+                        resolve(products);
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function readWbPostFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        const headers = rows[0];
+                        const idx = {
+                            region: headers.findIndex(h => h === 'Регион'),
+                            article: headers.findIndex(h => h === 'Артикул продавца'),
+                            name: headers.findIndex(h => h === 'Наименование товара'),
+                            wbArticle: headers.findIndex(h => h === 'Артикул WB'),
+                            barcodes: headers.findIndex(h => h === 'Баркоды'),
+                        };
+                        
+                        // Поиск колонки с 56 днями
+                        let rec56Idx = -1;
+                        for (let i = 0; i < headers.length; i++) {
+                            if (headers[i] && headers[i].includes('56 дней')) {
+                                rec56Idx = i;
+                                break;
+                            }
+                        }
+
+                        const productsMap = new Map();
+                        for (let i = 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (!row) continue;
+                            
+                            const region = row[idx.region];
+                            const article = row[idx.article];
+                            const qty = parseInt(row[rec56Idx]) || 0;
+                            
+                            if (!article || qty === 0 || region === 'Все регионы') continue;
+                            
+                            if (!productsMap.has(article)) {
+                                productsMap.set(article, {
+                                    article,
+                                    name: row[idx.name],
+                                    wbArticle: row[idx.wbArticle],
+                                    barcodes: row[idx.barcodes],
+                                    regions: {}
+                                });
+                            }
+                            const prod = productsMap.get(article);
+                            prod.regions[region] = (prod.regions[region] || 0) + qty;
+                        }
+                        resolve(Array.from(productsMap.values()));
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function readWbRegionsFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        const headers = rows[0];
+                        const barcodesIdx = headers.findIndex(h => h === 'Баркоды');
+                        
+                        const regions = [];
+                        for (let i = 4; i < headers.length - 1; i++) {
+                            const h = headers[i];
+                            if (h && h !== 'Сумма по регионам' && h !== 'ИТОГО:') regions.push(h);
+                        }
+
+                        const regionProducts = {};
+                        regions.forEach(r => regionProducts[r] = {});
+
+                        for (let i = 1; i < rows.length - 2; i++) {
+                            const row = rows[i];
+                            if (!row) continue;
+                            
+                            const barcodes = row[barcodesIdx];
+                            if (!barcodes) continue;
+                            
+                            const normalized = barcodes.split(',').map(b => b.trim()).join(', ');
+                            
+                            for (let j = 0; j < regions.length; j++) {
+                                const qty = parseInt(row[j+4]) || 0;
+                                if (qty > 0) {
+                                    regionProducts[regions[j]][normalized] = (regionProducts[regions[j]][normalized] || 0) + qty;
+                                }
+                            }
+                        }
+
+                        const products = [];
+                        regions.forEach(region => {
+                            Object.entries(regionProducts[region]).forEach(([barcodes, qty]) => {
+                                products.push({ region, barcodes, quantity: qty });
+                            });
+                        });
+                        resolve(products);
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Вспомогательные функции
+        function findColIndex(headers, possible) {
+            for (const p of possible) {
+                const idx = headers.findIndex(h => h && h.toString().toLowerCase().includes(p.toLowerCase()));
+                if (idx !== -1) return idx;
             }
             return -1;
         }
 
-        function getValue(row, index) {
-            if (index === -1 || !row || index >= row.length) return '';
-            const value = row[index];
-            return value !== undefined && value !== null ? value : '';
+        function getCell(row, idx) {
+            if (idx === -1 || !row || idx >= row.length) return '';
+            const v = row[idx];
+            return v !== undefined && v !== null ? v.toString().trim() : '';
         }
 
-        // Инициализация интерфейса
-        document.addEventListener('DOMContentLoaded', function() {
-            const dropZone = document.getElementById('dropZone');
-            const fileInput = document.getElementById('fileInput');
-            const fileInfo = document.getElementById('fileInfo');
-            const processBtn = document.getElementById('processBtn');
-            const downloadBtn = document.getElementById('downloadBtn');
-            const statsContainer = document.getElementById('statsContainer');
-            const resultsContainer = document.getElementById('resultsContainer');
-            const resultsBody = document.getElementById('resultsBody');
-            const logContainer = document.getElementById('logContainer');
-            
-            let currentFile = null;
-            let generator = null;
-            
-            // Обработка клика по зоне загрузки
-            dropZone.addEventListener('click', () => fileInput.click());
-            
-            // Обработка перетаскивания
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-            
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
-            
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleFile(files[0]);
+        function createCityMapping(clusters) {
+            const map = new Map();
+            const sorted = [...clusters].sort((a,b) => b.length - a.length);
+            sorted.forEach(c => {
+                if (!c) return;
+                let found = null;
+                for (const [ec, ecity] of map) {
+                    if (c.includes(ec) || ec.includes(c)) {
+                        found = c.length <= ec.length ? c : ecity;
+                        break;
+                    }
                 }
+                if (!found) found = c.split(/[,\s]/)[0] || c;
+                map.set(c, found);
             });
-            
-            // Обработка выбора файла
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleFile(e.target.files[0]);
-                }
-            });
-            
-            function handleFile(file) {
-                if (!file.name.match(/\.(xlsx|xls)$/i)) {
-                    addLog('❌ Пожалуйста, выберите файл Excel (.xlsx или .xls)', 'error');
-                    return;
-                }
-                
-                currentFile = file;
-                fileInfo.textContent = `Выбран файл: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
-                fileInfo.classList.remove('hidden');
-                processBtn.disabled = false;
-                addLog(`📁 Загружен файл: ${file.name}`, 'success');
-            }
-            
-            // Обработка кнопки обработки
-            processBtn.addEventListener('click', async () => {
-                if (!currentFile) return;
-                
-                try {
-                    processBtn.disabled = true;
-                    downloadBtn.disabled = true;
-                    
-                    addLog('🔄 Начинаем обработку файла...', 'info');
-                    
-                    const products = await readExcelFile(currentFile);
-                    
-                    addLog(`✅ Прочитано ${products.length} записей`, 'success');
-                    
-                    generator = new SupplyExcelGenerator(products);
-                    
-                    // Показываем предварительные данные
-                    const grouped = generator.groupByCluster();
-                    
-                    // Обновляем статистику
-                    const stats = {
-                        totalClusters: Object.keys(grouped).length,
-                        totalProducts: products.length,
-                        totalQuantity: products.reduce((sum, p) => sum + (parseInt(p.recommendedQuantity) || 0), 0),
-                        urgentProducts: products.filter(p => p.recommendation === 'Срочно поставить').length
-                    };
-                    
-                    document.getElementById('totalClusters').textContent = stats.totalClusters;
-                    document.getElementById('totalProducts').textContent = stats.totalProducts;
-                    document.getElementById('totalQuantity').textContent = stats.totalQuantity;
-                    document.getElementById('urgentProducts').textContent = stats.urgentProducts;
-                    
-                    statsContainer.style.display = 'grid';
-                    
-                    addLog('📊 Данные готовы к экспорту', 'success');
-                    downloadBtn.disabled = false;
-                    
-                } catch (error) {
-                    addLog(`❌ Ошибка: ${error.message}`, 'error');
-                    processBtn.disabled = false;
-                }
-            });
-            
-            // Обработка кнопки скачивания
-            downloadBtn.addEventListener('click', async () => {
-                if (!generator) return;
-                
-                try {
-                    downloadBtn.disabled = true;
-                    processBtn.disabled = true;
-                    
-                    addLog('📦 Создаем ZIP архив...', 'info');
-                    
-                    const zipBlob = await generator.generateZip();
-                    const stats = generator.getStats();
-                    
-                    // Обновляем таблицу результатов
-                    resultsBody.innerHTML = '';
-                    generator.results.forEach(result => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${result.cluster}</td>
-                            <td>${result.itemCount}</td>
-                            <td>${result.totalQuantity}</td>
-                            <td>${result.urgentCount}</td>
-                            <td>${result.fileName}</td>
-                        `;
-                        resultsBody.appendChild(row);
-                    });
-                    
-                    resultsContainer.style.display = 'block';
-                    
-                    // Сохраняем файл
-                    saveAs(zipBlob, 'ПОСТАВКА.zip');
-                    
-                    addLog(`✅ ZIP архив успешно создан и сохранен`, 'success');
-                    addLog(`📊 Всего кластеров: ${stats.totalClusters}, товаров: ${stats.totalProducts}, единиц: ${stats.totalQuantity}`, 'success');
-                    
-                } catch (error) {
-                    addLog(`❌ Ошибка при создании ZIP: ${error.message}`, 'error');
-                } finally {
-                    downloadBtn.disabled = false;
-                    processBtn.disabled = false;
-                }
-            });
-            
-            function addLog(message, type = 'info') {
-                const logEntry = document.createElement('div');
-                logEntry.className = `log-entry ${type}`;
-                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                logContainer.appendChild(logEntry);
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
-        });
+            return map;
+        }
     </script>
 </body>
 </html>
