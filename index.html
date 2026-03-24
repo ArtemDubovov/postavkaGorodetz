@@ -999,48 +999,101 @@
         }
 
         async function readOzonCitiesFile(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                
+                addLog(`📄 Файл содержит ${rows.length} строк`, 'info');
+                
+                const headers = rows[0];
+                addLog(`📋 Заголовки: ${JSON.stringify(headers)}`, 'info');
+                
+                // Находим индексы колонок
+                const articleIdx = headers.findIndex(h => h === 'Артикул');
+                const nameIdx = headers.findIndex(h => h === 'Товар');
+                
+                addLog(`📍 Индексы: Артикул=${articleIdx}, Товар=${nameIdx}`, 'info');
+                
+                // Собираем все города (все колонки после ШК)
+                const cities = [];
+                for (let i = 3; i < headers.length; i++) {
+                    const h = headers[i];
+                    if (h && h !== 'Сумма по городам' && h !== 'ИТОГО:' && h !== '') {
+                        cities.push(h);
+                    }
+                }
+                
+                addLog(`🏙️ Найдено городов: ${cities.length} - ${cities.join(', ')}`, 'info');
+                
+                const products = [];
+                
+                // Читаем все строки с данными
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row) continue;
+                    
+                    const article = row[articleIdx];
+                    const name = row[nameIdx];
+                    
+                    // Пропускаем пустые строки
+                    if (!article && !name) continue;
+                    
+                    addLog(`📦 Строка ${i}: артикул="${article}", название="${name?.substring(0, 30)}..."`, 'info');
+                    
+                    // Проходим по каждому городу
+                    for (let j = 0; j < cities.length; j++) {
+                        const city = cities[j];
+                        const cityIndex = 3 + j;
+                        const quantity = parseInt(row[cityIndex]) || 0;
                         
-                        const headers = rows[0];
-                        const articleIdx = headers.findIndex(h => h === 'Артикул');
-                        const nameIdx = headers.findIndex(h => h === 'Товар');
-                        
-                        // Сбор городов
-                        const cities = [];
-                        for (let i = 3; i < headers.length - 1; i++) {
-                            const h = headers[i];
-                            if (h && h !== 'Сумма по городам' && h !== 'ИТОГО:') cities.push(h);
+                        if (quantity > 0) {
+                            addLog(`  ➕ ${city}: ${quantity} шт`, 'info');
+                            products.push({
+                                article: article || '',
+                                name: name || '',
+                                quantity: quantity,
+                                city: city
+                            });
                         }
-
-                        const products = [];
-                        for (let i = 1; i < rows.length - 2; i++) {
-                            const row = rows[i];
-                            if (!row) continue;
-                            const article = row[articleIdx];
-                            const name = row[nameIdx];
-                            if (!article) continue;
-                            
-                            for (let j = 0; j < cities.length; j++) {
-                                const qty = parseInt(row[j+3]) || 0;
-                                if (qty > 0) {
-                                    products.push({ article, name, quantity: qty, city: cities[j] });
-                                }
-                            }
-                        }
-                        resolve(products);
-                    } catch (err) { reject(err); }
-                };
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
-        }
+                    }
+                }
+                
+                addLog(`✅ Прочитано ${products.length} записей с товарами`, 'success');
+                
+                // Группируем по артикулу и городу
+                const grouped = {};
+                products.forEach(item => {
+                    const key = `${item.article}_${item.city}`;
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            article: item.article,
+                            name: item.name,
+                            quantity: 0,
+                            city: item.city
+                        };
+                    }
+                    grouped[key].quantity += item.quantity;
+                });
+                
+                const result = Object.values(grouped);
+                addLog(`📊 После группировки: ${result.length} уникальных записей`, 'success');
+                
+                resolve(result);
+                
+            } catch (err) { 
+                addLog(`❌ Ошибка: ${err.message}`, 'error');
+                reject(err); 
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
 
         async function readWbPostFile(file) {
             return new Promise((resolve, reject) => {
