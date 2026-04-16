@@ -1114,40 +1114,91 @@
                             barcodes: headers.findIndex(h => h === 'Баркоды'),
                         };
                         
+                        console.log('Индексы колонок:', idx);
+                        
                         // Поиск колонки с 56 днями
                         let rec56Idx = -1;
                         for (let i = 0; i < headers.length; i++) {
-                            if (headers[i] && headers[i].includes('56 дней')) {
+                            if (headers[i] && String(headers[i]).includes('56 дней')) {
                                 rec56Idx = i;
                                 break;
                             }
                         }
-
+                        
+                        console.log('Индекс колонки 56 дней:', rec56Idx);
+                        
                         const productsMap = new Map();
+                        
                         for (let i = 1; i < rows.length; i++) {
                             const row = rows[i];
                             if (!row) continue;
                             
                             const region = row[idx.region];
                             const article = row[idx.article];
-                            const qty = parseInt(row[rec56Idx]) || 0;
                             
-                            if (!article || qty === 0 || region === 'Все регионы') continue;
+                            // Получаем количество и преобразуем в число
+                            let qty = row[rec56Idx];
+                            if (qty === undefined || qty === null || qty === '') {
+                                qty = 0;
+                            } else {
+                                qty = parseInt(String(qty).replace(/\s/g, '')) || 0;
+                            }
+                            
+                            // Пропускаем строки без артикула или с нулевым количеством
+                            if (!article || qty === 0) continue;
+                            
+                            // Пропускаем строки "Все регионы"
+                            if (region === 'Все регионы') continue;
+                            
+                            // Получаем название товара
+                            let name = row[idx.name];
+                            if (name !== undefined && name !== null) {
+                                name = String(name);
+                            } else {
+                                name = '';
+                            }
+                            
+                            // Получаем артикул WB
+                            let wbArticle = row[idx.wbArticle];
+                            if (wbArticle !== undefined && wbArticle !== null) {
+                                wbArticle = String(wbArticle);
+                            } else {
+                                wbArticle = '';
+                            }
+                            
+                            // Получаем баркоды
+                            let barcodes = row[idx.barcodes];
+                            if (barcodes !== undefined && barcodes !== null) {
+                                barcodes = String(barcodes);
+                            } else {
+                                barcodes = '';
+                            }
                             
                             if (!productsMap.has(article)) {
                                 productsMap.set(article, {
-                                    article,
-                                    name: row[idx.name],
-                                    wbArticle: row[idx.wbArticle],
-                                    barcodes: row[idx.barcodes],
+                                    article: article,
+                                    name: name,
+                                    wbArticle: wbArticle,
+                                    barcodes: barcodes,
                                     regions: {}
                                 });
                             }
+                            
                             const prod = productsMap.get(article);
-                            prod.regions[region] = (prod.regions[region] || 0) + qty;
+                            const currentQty = prod.regions[region] || 0;
+                            prod.regions[region] = currentQty + qty;
+                            
+                            console.log(`Товар ${article}, регион ${region}: +${qty} = ${prod.regions[region]}`);
                         }
-                        resolve(Array.from(productsMap.values()));
-                    } catch (err) { reject(err); }
+                        
+                        const result = Array.from(productsMap.values());
+                        console.log(`✅ Обработано ${result.length} товаров`);
+                        resolve(result);
+                        
+                    } catch (err) { 
+                        console.error('Ошибка:', err);
+                        reject(err); 
+                    }
                 };
                 reader.onerror = reject;
                 reader.readAsArrayBuffer(file);
@@ -1167,40 +1218,86 @@
                         const headers = rows[0];
                         const barcodesIdx = headers.findIndex(h => h === 'Баркоды');
                         
+                        console.log('Индекс колонки Баркоды:', barcodesIdx);
+                        
+                        // Собираем регионы (колонки после 4 до предпоследней)
                         const regions = [];
                         for (let i = 4; i < headers.length - 1; i++) {
                             const h = headers[i];
-                            if (h && h !== 'Сумма по регионам' && h !== 'ИТОГО:') regions.push(h);
+                            if (h && h !== 'Сумма по регионам' && h !== 'ИТОГО:') {
+                                regions.push(h);
+                            }
                         }
-
+                        
+                        console.log('Найдено регионов:', regions);
+                        
                         const regionProducts = {};
                         regions.forEach(r => regionProducts[r] = {});
-
+                        
                         for (let i = 1; i < rows.length - 2; i++) {
                             const row = rows[i];
                             if (!row) continue;
                             
-                            const barcodes = row[barcodesIdx];
+                            let barcodes = row[barcodesIdx];
+                            
+                            // Пропускаем строки без баркодов
                             if (!barcodes) continue;
                             
-                            const normalized = barcodes.split(',').map(b => b.trim()).join(', ');
+                            // ПРЕОБРАЗУЕМ В СТРОКУ, ЕСЛИ ЭТО НЕ СТРОКА
+                            if (typeof barcodes !== 'string') {
+                                barcodes = String(barcodes);
+                            }
+                            
+                            // Проверяем, есть ли запятые в баркодах
+                            let normalizedBarcodes = barcodes;
+                            if (barcodes.includes(',') || barcodes.includes(',')) {
+                                normalizedBarcodes = barcodes.split(',').map(b => String(b).trim()).join(', ');
+                            } else {
+                                normalizedBarcodes = barcodes.trim();
+                            }
+                            
+                            console.log(`Строка ${i}: баркоды="${normalizedBarcodes}"`);
                             
                             for (let j = 0; j < regions.length; j++) {
-                                const qty = parseInt(row[j+4]) || 0;
-                                if (qty > 0) {
-                                    regionProducts[regions[j]][normalized] = (regionProducts[regions[j]][normalized] || 0) + qty;
+                                const regionIndex = j + 4;
+                                let quantity = parseInt(row[regionIndex]) || 0;
+                                
+                                // Если quantity не число, пробуем преобразовать
+                                if (isNaN(quantity)) {
+                                    quantity = 0;
+                                }
+                                
+                                if (quantity > 0) {
+                                    if (!regionProducts[regions[j]][normalizedBarcodes]) {
+                                        regionProducts[regions[j]][normalizedBarcodes] = 0;
+                                    }
+                                    regionProducts[regions[j]][normalizedBarcodes] += quantity;
+                                    console.log(`  ${regions[j]}: +${quantity} = ${regionProducts[regions[j]][normalizedBarcodes]}`);
                                 }
                             }
                         }
-
+                        
+                        // Преобразуем в массив
                         const products = [];
                         regions.forEach(region => {
                             Object.entries(regionProducts[region]).forEach(([barcodes, qty]) => {
-                                products.push({ region, barcodes, quantity: qty });
+                                if (qty > 0) {
+                                    products.push({ 
+                                        region: region, 
+                                        barcodes: barcodes, 
+                                        quantity: qty 
+                                    });
+                                }
                             });
                         });
+                        
+                        console.log(`✅ Обработано ${products.length} записей`);
                         resolve(products);
-                    } catch (err) { reject(err); }
+                        
+                    } catch (err) { 
+                        console.error('Ошибка:', err);
+                        reject(err); 
+                    }
                 };
                 reader.onerror = reject;
                 reader.readAsArrayBuffer(file);
